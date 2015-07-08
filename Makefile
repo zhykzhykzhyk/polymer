@@ -1,7 +1,12 @@
-CXXFLAGS=-std=c++14
+CXXFLAGS+=-std=c++14
 
-BINS=
-SRCS=
+ifdef CILK
+CXXFLAGS+=-fcilkplus -DCILK
+LDLIBS+=-lcilkrts
+endif
+
+BINS=test_parallel
+SRCS=test_parallel.cc
 
 .PHONY: all clean
 
