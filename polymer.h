@@ -6,6 +6,7 @@
 #define POLYMER_H
 #include <cstdint>
 #include <cstddef>
+#include <vector>
 
 #include "parallel.h"
 #include "io.h"
@@ -116,7 +117,6 @@ class PolymerGraph {
   long n_shards() const { return n_shards_; }
 
   void put_edge(uint16_t shard, uint32_t offset, EdgeT data) {
-    printf("put edge %d of %d: %d -> %d\n", shard, offset, data.from, data.to);
     auto& vertices = shardVertices[shard];
     auto& edges = shardEdges[shard];
 

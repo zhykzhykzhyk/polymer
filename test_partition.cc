@@ -1,5 +1,6 @@
 #include "polymer.h"
 #include "utils.h" 
+#include <errno.h>
 
 class Vertex {
   typedef unsigned long vertex_id_type;

@@ -1,4 +1,4 @@
-CXXFLAGS+=-std=c++1y `getconf LFS_CFLAGS` #-D_FILE_OFFSET_BITS=64
+CXXFLAGS+=-std=c++1y `getconf LFS_CFLAGS` -Wall
 LDLIBS+=-lstdc++ `getconf LFS_LIBS`
 LDFLAGS+=`getconf LFS_LDFLAGS`
 

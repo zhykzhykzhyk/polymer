@@ -21,7 +21,7 @@ void File::open(const char *fname) {
 
 void FileBuffer::open() {
   static int fileid = 0;
-  int fd = ::open(std::to_string(fileid++).c_str(), O_RDWR | O_CREAT | O_LARGEFILE, 0600);
+  int fd = ::open(std::to_string(fileid++).c_str(), O_RDWR | O_CREAT, 0600);
   if (fd < 0)
     OSError::raise("open");
 
