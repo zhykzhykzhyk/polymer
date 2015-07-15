@@ -1,5 +1,6 @@
-CXXFLAGS+=-std=c++1y -D_FILE_OFFSET_BITS=64
-LDLIBS+=-lstdc++
+CXXFLAGS+=-std=c++1y `getconf LFS_CFLAGS` #-D_FILE_OFFSET_BITS=64
+LDLIBS+=-lstdc++ `getconf LFS_LIBS`
+LDFLAGS+=`getconf LFS_LDFLAGS`
 
 ifdef CILK
 CXXFLAGS+=-fcilkplus -DCILK

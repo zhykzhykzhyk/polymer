@@ -10,6 +10,8 @@
 #include <string>
 #include <cstdio>
 
+static_assert(sizeof(off_t) >= 8, "off_t should equals to off64_t");
+
 void OSError::raise(const char *reason) {
   throw OSError{reason, errno};
 }
@@ -28,7 +30,7 @@ void FileBuffer::open() {
 }
 
 void FileBuffer::resize(size_t size) {
-  if (ftruncate64(get(), size) < 0)
+  if (ftruncate(get(), size) < 0)
     OSError::raise("ftruncate");
 
   this->size = size;
