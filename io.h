@@ -39,7 +39,7 @@ class File {
 
 class FileBuffer : File {
  public:
-  FileBuffer() : data{}, size{} { }
+  FileBuffer() : data_{}, size_{} { }
   FileBuffer(const FileBuffer&) = delete;
   FileBuffer(FileBuffer&& buf) : FileBuffer() { swap(buf); }
   FileBuffer& operator=(const FileBuffer&) = delete;
@@ -52,13 +52,14 @@ class FileBuffer : File {
     if (!is_open())
       open();
 
-    this->size += size;
+    size_ += size;
     File::write(data, size);
   }
 
   void resize(size_t size);
+  size_t size() { return size_; }
 
-  bool freezed() { return data; }
+  bool freezed() { return data_; }
   void *freeze();
 
   void *lock();
@@ -67,13 +68,12 @@ class FileBuffer : File {
   void *lockSeq();
   void unlockSeq();
 
-  size_t tell() const { return size; }
+  size_t tell() const { return size_; }
 
   void swap(FileBuffer& buf) {
     using std::swap;
-    swap(data, buf.data);
-    swap(size, buf.size);
-    swap(off, buf.off);
+    swap(data_, buf.data_);
+    swap(size_, buf.size_);
     swap(static_cast<File&>(buf), static_cast<File&>(*this));
   }
 
@@ -82,8 +82,8 @@ class FileBuffer : File {
  private:
   void open();
 
-  void *data;
-  size_t size, off;
+  void *data_;
+  size_t size_;
 };
 
 #endif

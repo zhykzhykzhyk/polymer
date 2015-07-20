@@ -30,32 +30,38 @@ void FileBuffer::open() {
 }
 
 void FileBuffer::resize(size_t size) {
+  if (!is_open()) {
+    if (size == 0)
+      return (void)(size_ = 0);
+
+    open();
+  }
   if (ftruncate(get(), size) < 0)
     OSError::raise("ftruncate");
 
-  this->size = size;
+  size_ = size;
 }
 
 void *FileBuffer::freeze() {
-  if (data != NULL)
-    return data;
+  if (data_ != NULL)
+    return data_;
 
   if (!is_open())
     return NULL;
 
-  data = mmap(NULL, size, PROT_READ, MAP_SHARED /*| MAP_HUGETLB*/, get(), 0);
-  if (data == MAP_FAILED) {
-    data = NULL;
+  data_ = mmap(NULL, size_, PROT_READ, MAP_SHARED /*| MAP_HUGETLB*/, get(), 0);
+  if (data_ == MAP_FAILED) {
+    data_ = NULL;
     OSError::raise("mmap");
   }
 
   close();
-  return data;
+  return data_;
 }
 
 FileBuffer::~FileBuffer() {
-  if (data) {
-    if (munmap(data, size) < 0)
+  if (data_) {
+    if (munmap(data_, size_) < 0)
       OSError::raise("munmap");
   }
 }
@@ -70,18 +76,20 @@ void File::close() {
 
   if (::close(fd) < 0)
     OSError::raise("close");
+
+  fd = -1;
 }
 
 void *FileBuffer::lock() {
   freeze();
-  madvise(data, size, MADV_RANDOM);
-  return data;
+  madvise(data_, size_, MADV_RANDOM);
+  return data_;
 }
 
 void *FileBuffer::lockSeq() {
   freeze();
-  madvise(data, size, MADV_SEQUENTIAL);
-  return data;
+  madvise(data_, size_, MADV_SEQUENTIAL);
+  return data_;
 }
 
 void FileBuffer::unlockSeq() { }

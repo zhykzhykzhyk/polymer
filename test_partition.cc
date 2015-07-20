@@ -2,9 +2,11 @@
 #include "utils.h" 
 #include <errno.h>
 
-class Vertex {
+struct Vertex {
   typedef unsigned long vertex_id_type;
   vertex_id_type id;
+
+  typedef void vertex_data_type;
 };
 
 Edge edges[] {
@@ -18,7 +20,7 @@ PolymerGraph<Edge, Vertex> graph;
 
 int main() {
   try {
-    initGraph(graph, 2, edges, edges + sizeof(edges) / sizeof(*edges));
+    initGraph(graph, 2, 4, edges, edges + sizeof(edges) / sizeof(*edges));
   } catch (OSError e) {
     errno = e.err;
     perror(e.reason);
