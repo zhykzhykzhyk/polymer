@@ -1,6 +1,7 @@
 CXXFLAGS+=-std=gnu++14 `getconf LFS_CFLAGS` -Wall -g
 LDLIBS+=-lstdc++ `getconf LFS_LIBS` -lnuma -lpthread
 LDFLAGS+=`getconf LFS_LDFLAGS`
+CXX=clang++
 
 ifdef CILK
 CXXFLAGS+=-fcilkplus -DCILK

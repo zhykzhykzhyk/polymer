@@ -21,7 +21,7 @@ void File::open(const char *fname) {
 
 void FileBuffer::open() {
   static int fileid = 0;
-  int fd = ::open(std::to_string(fileid++).c_str(), O_RDWR | O_CREAT, 0600);
+  int fd = ::open(std::to_string(fileid++).c_str(), O_RDWR | O_CREAT | O_TRUNC, 0600);
   if (fd < 0)
     OSError::raise("open");
 
@@ -60,9 +60,13 @@ void *FileBuffer::freeze() {
 }
 
 FileBuffer::~FileBuffer() {
+  close();
+
   if (data_) {
     if (munmap(data_, size_) < 0)
       OSError::raise("munmap");
+
+    data_ = NULL;
   }
 }
 
@@ -82,12 +86,14 @@ void File::close() {
 
 void *FileBuffer::lock() {
   freeze();
+  mprotect(data_, size_, PROT_READ | PROT_WRITE);
   madvise(data_, size_, MADV_RANDOM);
   return data_;
 }
 
 void *FileBuffer::lockSeq() {
   freeze();
+  mprotect(data_, size_, PROT_READ | PROT_WRITE);
   madvise(data_, size_, MADV_SEQUENTIAL);
   return data_;
 }

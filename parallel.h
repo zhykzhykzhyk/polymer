@@ -21,6 +21,7 @@ class AbstractTask {
 class AbstractTaskGroup : public AbstractTask {
  public:
   virtual void start(int shards, std::function<void(int)> task) = 0;
+  virtual bool done() const = 0;
 };
 
 template <typename F>
@@ -46,6 +47,47 @@ class Task : std::unique_ptr<AbstractTask> {
   }
 };
 
+template <typename T>
+class TaskQueue {
+  class LocalQueue {
+   public:
+    T localTakeOne() {
+      if (isPublic) {
+        std::unique_lock<std::mutex> lock(publicMut);
+        return takeOne();
+      } else if (requestPublic) {
+        T&& data = takeOne();
+        {
+          std::unique_lock<std::mutex> lock(publicMut);
+          isPublic = true;
+        }
+        publicCond.notify_all();
+        return data;
+      }
+
+      return takeOne();
+    }
+
+    T remoteTakeOne() {
+      requestPublic = true;
+      std::unique_lock<std::mutex> lock(publicMut);
+      publicCond.wait([this] { return isPublic; });
+      return takeOne();
+    }
+
+   private:
+    T takeOne();
+
+    volatile bool requestPublic;
+    
+    std::mutex publicMut;
+    std::condition_variable publicCond;
+
+    // can only change while holding publicMut;
+    bool isPublic;
+  };
+};
+
 template <typename ViewT>
 class TaskGroup : public AbstractTaskGroup {
  public:
@@ -53,7 +95,8 @@ class TaskGroup : public AbstractTaskGroup {
   typedef typename ViewT::task_data_type task_data_type;
 
   template <typename... Args>
-  TaskGroup(Args&&... args) : task_data(std::forward<Args>(args)...), exiting(false) {
+  TaskGroup(Args&&... args) : task_data(std::forward<Args>(args)...),
+    next_shard(0), nreducer(0), nworker(0), exiting(false) {
   }
   
   void start(int shards, std::function<void(int)> task) override {
@@ -64,6 +107,7 @@ class TaskGroup : public AbstractTaskGroup {
 
   void operator()() override {
     // re-entry
+    ++nworker;
     auto shard = next_shard++;
 
     if (shard > shards) return;  // nothing to do
@@ -77,6 +121,12 @@ class TaskGroup : public AbstractTaskGroup {
       // TODO: do prefetch for nextTask
       task(shard);
       shard = nextShard;
+    }
+
+    view.apply(this);
+
+    if (done() && --nworker == 0) {
+      all_done.set_value();
     }
 
     views.erase(this);
@@ -104,7 +154,6 @@ class TaskGroup : public AbstractTaskGroup {
     }
 
     f();
-    ++shards_done;
     while (--nreducer) {
       // reducer in queue
       std::function<void()> f;
@@ -118,35 +167,32 @@ class TaskGroup : public AbstractTaskGroup {
         reducers.pop_front();
       }
       f();
-      ++shards_done;
     }
-
-    if (shards_done == shards)
-      all_done.set_value();
   }
   
-  void lock() { mut.lock(); }
-  void unlock() { mut.unlock(); }
-  void wait() { all_done.get_future().get(); }
-
-  bool done() { return next_shard < shards; }
+  void wait() { if (shards) all_done.get_future().get(); }
+  bool done() const override { return next_shard >= shards; }
 
  private:
   // static thread_local std::map<TaskGroup *, task_view_type *> views;
   static thread_local std::map<TaskGroup<ViewT> *, typename TaskGroup<ViewT>::task_view_type *> /*TaskGroup<ViewT>::*/views;
 
+  void onDone() {
+  }
+
   std::function<void(int)> task;
+  std::function<void()> cleanup;
   task_data_type task_data;
 
   int shards;
-  int shards_done;
 
   std::atomic<int> next_shard;
   std::atomic<int> nreducer;
+  std::atomic<int> nworker;
   std::promise<void> all_done;
 
   std::mutex mut;
-  std::list<std::function<void(int)>> reducers;
+  std::list<std::function<void()>> reducers;
 
   bool exiting;
 };
@@ -185,14 +231,14 @@ class ThreadPool {
 
   ThreadPool();
   ~ThreadPool();
-  void queue(int priority, AbstractTaskGroup *);
+  void queue(int priority, std::shared_ptr<AbstractTaskGroup>);
 
  private:
   // queues
   static thread_local ThreadPool *pool;
   std::mutex mut;
   std::condition_variable cond;
-  std::priority_queue<std::pair<int, AbstractTaskGroup *>, std::vector<std::pair<int, AbstractTaskGroup *>>, PriorityComparer> tasks;
+  std::priority_queue<std::pair<int, std::shared_ptr<AbstractTaskGroup>>, std::vector<std::pair<int, std::shared_ptr<AbstractTaskGroup>>>, PriorityComparer> tasks;
   std::vector<std::thread> threads;
 };
 
