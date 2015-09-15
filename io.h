@@ -26,6 +26,7 @@ class File {
 
   void open(int fd);
   void open(const char *fname);
+  size_t size() const;
   void close();
 
   void write(void *data, size_t size);
@@ -39,22 +40,17 @@ class File {
 
 class FileBuffer : File {
  public:
-  FileBuffer() : data_{}, size_{} { }
+  FileBuffer() : data_{}, cap_{}, size_{} { }
   FileBuffer(const FileBuffer&) = delete;
   FileBuffer(FileBuffer&& buf) : FileBuffer() { swap(buf); }
   FileBuffer& operator=(const FileBuffer&) = delete;
   FileBuffer& operator=(FileBuffer&& buf) { swap(buf); return *this; }
   FileBuffer(File&& f) : File{std::move(f)} { }
 
-  void write(void *data, size_t size) {
-    if (freezed())
-      throw Freezed{};
-    if (!is_open())
-      open();
+  void init(size_t ncap);
+  void grow(size_t ncap);
 
-    size_ += size;
-    File::write(data, size);
-  }
+  void write(void *data, size_t size);
 
   void resize(size_t size);
   size_t size() { return size_; }
@@ -83,6 +79,7 @@ class FileBuffer : File {
   void open();
 
   void *data_;
+  size_t cap_;
   size_t size_;
 };
 

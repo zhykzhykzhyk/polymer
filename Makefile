@@ -1,4 +1,4 @@
-CXXFLAGS+=-std=gnu++14 `getconf LFS_CFLAGS` -Wall -g
+CXXFLAGS+=-std=gnu++14 `getconf LFS_CFLAGS` -Wall -g -O2
 LDLIBS+=-lstdc++ `getconf LFS_LIBS` -lnuma -lpthread
 LDFLAGS+=`getconf LFS_LDFLAGS`
 CXX=clang++

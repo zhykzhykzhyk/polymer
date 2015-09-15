@@ -1,4 +1,7 @@
+#include <iostream>
 #include "polymer.h"
+#include <sys/mman.h>
+#include <numa.h>
 
 struct Vertex {
   typedef unsigned long vertex_id_type;
@@ -46,12 +49,46 @@ struct DeltaView {
   double acc;
 };
 
-int main() {
-  constexpr int nVertices = 4;
+void * operator new(std::size_t n) throw(std::bad_alloc) {
+  auto ptr = (std::size_t *)numa_alloc_local(n + sizeof(n));
+  if (ptr == NULL) throw std::bad_alloc();
+  *ptr = n + sizeof(n);
+  return (std::size_t *)ptr + 1;
+}
+
+void operator delete(void *p) throw() {
+  auto ptr = (std::size_t *)p;
+  numa_free(ptr - 1, ptr[-1]);
+}
+
+void * operator new[](std::size_t n) throw(std::bad_alloc) {
+  auto ptr = (std::size_t *)numa_alloc_local(n + sizeof(n));
+  if (ptr == NULL) throw std::bad_alloc();
+  *ptr = n + sizeof(n);
+  return (std::size_t *)ptr + 1;
+}
+
+void operator delete[](void *p) throw() {
+  auto ptr = (std::size_t *)p;
+  numa_free(ptr - 1, ptr[-1]);
+}
+
+int main(int argc, char *argv[]) {
+  constexpr int nVertices = 0x4000000;
   constexpr double damping = 0.85, epsilon = 0.0000001;
   try {
     typedef Vertex::vertex_data_type DT;
-    initGraph(graph, 2, nVertices, edges, edges + sizeof(edges) / sizeof(*edges));
+    {
+      File f;
+      f.open(argv[1]);
+      auto size = f.size();
+      auto edges = (Edge *)mmap(NULL, size, PROT_READ, MAP_SHARED, f.get(), 0);
+      madvise(edges, size, MADV_SEQUENTIAL);
+      std::cout << "Size: " << size << std::endl;
+      initGraph(graph, nVertices / 0x100000 + 1, nVertices, edges, edges + size / sizeof(*edges));
+      std::cout << "Init complete!" << std::endl;
+      munmap(edges, size);
+    }
     graph.activeAll();
     vertexMap(graph, [](DT& v) {
       v.curr = 1.0 / nVertices;

@@ -51,7 +51,7 @@ class BitSet {
   }
 
   static size_t allocate_size(size_t bits) {
-    return sizeof(size_t) + buf_size(bits);
+    return 8 + buf_size(bits);
   }
 
  private:

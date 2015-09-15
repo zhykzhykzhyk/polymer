@@ -195,7 +195,8 @@ class DefaultHashF {
 template <typename HashF, typename EdgeIterT, typename GraphT>
 void initGraph(GraphT& g, size_t shards, size_t vertices, EdgeIterT first, EdgeIterT last, HashF f = HashF{}) {
   g.resize(shards, vertices);
-  g.parallel_shards([&](int shard) {
+  for (int shard = 0; shard < shards; shard++) {
+  // g.parallel_shards([&g, vertices](int shard) {
     auto vertices = g.vertices_of_shard(shard);
     g.shardData[shard].resize(vertices * GraphT::vertex_data_size);
 
@@ -203,15 +204,17 @@ void initGraph(GraphT& g, size_t shards, size_t vertices, EdgeIterT first, EdgeI
 
     g.shardActive[shard].resize(asize);
     auto active = static_cast<BitSet*>(g.shardActive[shard].lockSeq());
+    std::cout << "vertices: " << vertices << std::endl;
     active->resize(vertices);
-    active->set();
+    // assert(active->size() == vertices);
+    // active->set();
     g.shardActive[shard].unlockSeq();
 
     g.shardFrontiers[shard].resize(asize);
     auto frontiers = static_cast<BitSet*>(g.shardFrontiers[shard].lockSeq());
     frontiers->resize(vertices);
     g.shardFrontiers[shard].unlockSeq();
-  });
+  } // );
 
   // need external sorting if parallel
   for (; first != last; ++first) {
