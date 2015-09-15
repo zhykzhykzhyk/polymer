@@ -18,6 +18,30 @@ Edge edges[] {
   {0, 3},
   {1, 3},
   {2, 1},
+  {0, 23},
+  {1, 0},
+  {1, 2},
+  {3, 2},
+  {4, 3},
+  {5, 4},
+  {6, 5},
+  {7, 6},
+  {8, 7},
+  {9, 8},
+  {10, 9},
+  {11, 10},
+  {12, 11},
+  {13, 12},
+  {14, 13},
+  {15, 14},
+  {16, 15},
+  {17, 16},
+  {18, 17},
+  {19, 18},
+  {20, 19},
+  {21, 20},
+  {22, 21},
+  {23, 22},
 };
 
 PolymerGraph<Edge, Vertex> graph;
@@ -48,7 +72,7 @@ struct DeltaView {
   DeltaView& operator += (double v) { acc += v; return *this; }
   double acc;
 };
-
+/*
 void * operator new(std::size_t n) throw(std::bad_alloc) {
   auto ptr = (std::size_t *)numa_alloc_local(n + sizeof(n));
   if (ptr == NULL) throw std::bad_alloc();
@@ -72,12 +96,13 @@ void operator delete[](void *p) throw() {
   auto ptr = (std::size_t *)p;
   numa_free(ptr - 1, ptr[-1]);
 }
-
+*/
 int main(int argc, char *argv[]) {
   constexpr int nVertices = 0x4000000;
   constexpr double damping = 0.85, epsilon = 0.0000001;
   try {
     typedef Vertex::vertex_data_type DT;
+    if (argc > 1)
     {
       File f;
       f.open(argv[1]);
@@ -88,6 +113,10 @@ int main(int argc, char *argv[]) {
       initGraph(graph, nVertices / 0x100000 + 1, nVertices, edges, edges + size / sizeof(*edges));
       std::cout << "Init complete!" << std::endl;
       munmap(edges, size);
+    }
+    else {
+      // initGraph(graph, 2, 4, edges, edges + sizeof(edges) / sizeof(*edges));
+      initGraph(graph, 24, 24, edges, edges + sizeof(edges) / sizeof(*edges));
     }
     graph.activeAll();
     vertexMap(graph, [](DT& v) {
@@ -101,6 +130,7 @@ int main(int argc, char *argv[]) {
         return true;
       });
       auto tg = std::make_shared<TaskGroup<DeltaView>>();
+      printf("VM %p\n", tg.get());
       vertexMap(graph, [tg](DT& v) {
         auto next = v.next * damping + (1 - damping) / nVertices;
         tg->view() += fabs(next - v.curr);
@@ -108,7 +138,7 @@ int main(int argc, char *argv[]) {
         v.next = 0;
         return true;
       });
-      tg->wait();
+      // tg->wait();
       if (tg->data() < epsilon) break;
     } while (1);
   } catch (OSError e) {

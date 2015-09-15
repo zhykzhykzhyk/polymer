@@ -38,7 +38,7 @@ ThreadPool::ThreadPool() {
       CPU_FREE(cpuset);
       std::unique_lock<std::mutex> lock(mut);
       std::shared_ptr<AbstractTaskGroup> tg;
-      while (1) {
+      while (1) try {
         printf("%3d: ", i);
         puts("WAIT TASK");
         while (tasks.empty()) {
@@ -61,6 +61,10 @@ ThreadPool::ThreadPool() {
             (*tg)();
           } catch (Exit *e) {
             return;
+          } catch (...) {
+            puts("OOPS!");
+            abort();
+            return;
           }
           lock.lock();
           printf("%3d: ", i);
@@ -69,6 +73,10 @@ ThreadPool::ThreadPool() {
           printf("%3d: ", i);
           puts("REMOVE");
         }
+      } catch(...) {
+        puts("OOPS!!!");
+        abort();
+        return;
       }
     });
   }

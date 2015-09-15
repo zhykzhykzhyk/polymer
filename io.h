@@ -70,6 +70,7 @@ class FileBuffer : File {
     using std::swap;
     swap(data_, buf.data_);
     swap(size_, buf.size_);
+    swap(cap_, buf.cap_);
     swap(static_cast<File&>(buf), static_cast<File&>(*this));
   }
 

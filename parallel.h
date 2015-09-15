@@ -106,11 +106,12 @@ class TaskGroup : public AbstractTaskGroup {
   }
 
   void operator()() override {
+    auto shard = next_shard++;
+    if (shard > shards) return;  // nothing to do
+
     // re-entry
     ++nworker;
-    auto shard = next_shard++;
-
-    if (shard > shards) return;  // nothing to do
+    printf("%p START\n", this);
 
     task_view_type view(this);  // create view
     auto task = this->task;     // copy task to local stack
@@ -118,14 +119,18 @@ class TaskGroup : public AbstractTaskGroup {
 
     while (shard < shards) {
       auto nextShard = next_shard++;  // prefetch
+      printf("%p NEXT SHARD: %d\n", this, nextShard);
       // TODO: do prefetch for nextTask
       task(shard);
       shard = nextShard;
     }
 
     view.apply(this);
+    int nw = --nworker;
+    printf("%p NWORKER: %d\n", this, nw);
 
-    if (done() && --nworker == 0) {
+    if (done() && nw == 0) {
+      printf("%p WELL DONE\n", this);
       all_done.set_value();
     }
 

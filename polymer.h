@@ -204,7 +204,7 @@ void initGraph(GraphT& g, size_t shards, size_t vertices, EdgeIterT first, EdgeI
 
     g.shardActive[shard].resize(asize);
     auto active = static_cast<BitSet*>(g.shardActive[shard].lockSeq());
-    std::cout << "vertices: " << vertices << std::endl;
+    // std::cout << "vertices: " << vertices << std::endl;
     active->resize(vertices);
     // assert(active->size() == vertices);
     // active->set();
@@ -218,6 +218,8 @@ void initGraph(GraphT& g, size_t shards, size_t vertices, EdgeIterT first, EdgeI
 
   // need external sorting if parallel
   for (; first != last; ++first) {
+    assert(first->from < vertices);
+    assert(first->to < vertices);
     int shard, offset;
     std::tie(shard, offset) = f.hash(first->to);
     g.put_edge(shard, offset, *first);
@@ -231,6 +233,7 @@ void initGraph(GraphT& g, size_t shards, size_t vertices, EdgeIterT first, EdgeI
 
 template <typename TG = Empty, typename GraphT, typename F>
 void vertexMap(std::shared_ptr<TG> tg, GraphT& g, const F& f) {
+  printf("VM %p\n", tg.get());
   g.parallel_shards(INT_MAX, tg, [&](int shard) {
     auto frontiers = static_cast<BitSet*>(g.shardFrontiers[shard].lockSeq());
     frontiers->clear();
@@ -286,10 +289,10 @@ class ShardView {
     views(tg->data().vertices), 
     frontierView(BitSet::create(views.size())) { }
 
-  void apply(TaskGroup<ShardView> *tg) const {
+  void apply(TaskGroup<ShardView> *tg) {
     auto&& data = tg->data();
     tg->reduce([views = std::move(views), 
-                frontierView = std::move(frontierView),
+                frontierView = std::shared_ptr<BitSet>(std::move(frontierView)),
                 data = data.data, frontiers = data.frontiers]() {
       for (int i = 0; i < views.size(); i++)
         views[i].apply(data[i]);
@@ -298,14 +301,15 @@ class ShardView {
     });
   }
 
-  ~ShardView() { delete frontierView; }
+  ~ShardView() { }
 
   std::vector<ViewT> views;
-  BitSet *frontierView;
+  std::unique_ptr<BitSet> frontierView;
 };
 
 template <typename ViewT, typename TG = Empty, typename GraphT, typename F>
 void edgeMap(std::shared_ptr<TG> tg, GraphT& g, const F& f) {
+  printf("EM %p\n", tg.get());
   g.parallel_shards(INT_MAX, tg, [&](int shard) {
     auto localData = static_cast<typename GraphT::vertex_data_type*>(g.shardData[shard].lockSeq());
     auto frontiers = static_cast<BitSet*>(g.shardFrontiers[shard].lockSeq());
@@ -338,10 +342,10 @@ void edgeMap(std::shared_ptr<TG> tg, GraphT& g, const F& f) {
         }
       });
     });
-    /*
+    
     tg->wait();
     g.shardData[shard].unlockSeq();
-    g.shardActive[shard].unlockSeq();*/
+    g.shardActive[shard].unlockSeq();
   });
   tg->wait();
 }

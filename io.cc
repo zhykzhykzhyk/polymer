@@ -56,9 +56,16 @@ void FileBuffer::resize(size_t size) {
 
   cap_ = size;
   size_ = size;
+
+  freeze();
+  assert(data_ != MAP_FAILED);
 }
 
 void *FileBuffer::freeze() {
+  // XXX:
+  if (data_ == MAP_FAILED)
+    data_ = NULL;
+
   assert(data_ != MAP_FAILED);
 
   if (data_ != NULL)
@@ -72,9 +79,10 @@ void *FileBuffer::freeze() {
     OSError::raise("mmap");
 
   data_ = data;
-  assert(data_ != MAP_FAILED);
-
   close();
+
+  assert(data_ != MAP_FAILED);
+  assert(data_ != NULL);
   return data_;
 }
 
@@ -158,14 +166,14 @@ void File::close() {
 }
 
 void *FileBuffer::lock() {
-  freeze();
+  // freeze();
   mprotect(data_, size_, PROT_READ | PROT_WRITE);
   madvise(data_, size_, MADV_RANDOM);
   return data_;
 }
 
 void *FileBuffer::lockSeq() {
-  freeze();
+  // freeze();
   mprotect(data_, size_, PROT_READ | PROT_WRITE);
   madvise(data_, size_, MADV_SEQUENTIAL);
   return data_;
